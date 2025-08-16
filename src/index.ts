@@ -53,6 +53,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   if (name === "get_transcript") {
     try {
+      if (!args) {
+        throw new Error("Missing arguments");
+      }
       const videoId = extractVideoId(args.videoId as string);
       const lang = (args.lang as string) || "en";
 

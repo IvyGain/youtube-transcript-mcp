@@ -49,7 +49,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   if (request.params.name === "get_transcript") {
     try {
-      const { videoId, lang = 'en' } = request.params.arguments;
+      if (!request.params.arguments) {
+        throw new Error("Missing arguments");
+      }
+      const args = request.params.arguments as { videoId: string; lang?: string };
+      const { videoId, lang = 'en' } = args;
       
       // URLからvideoIdを抽出
       let extractedId = videoId;
@@ -108,7 +112,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         content: [
           {
             type: "text",
-            text: `Error fetching transcript: ${error.message}`
+            text: `Error fetching transcript: ${error instanceof Error ? error.message : "Unknown error"}`
           }
         ],
         isError: true

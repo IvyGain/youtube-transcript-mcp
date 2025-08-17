@@ -1,18 +1,28 @@
 {
   "name": "youtube-transcript-mcp",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "MCP server for fetching YouTube video transcripts",
   "type": "module",
   "main": "dist/index.js",
+  "bin": {
+    "youtube-transcript-mcp": "./dist/cli.js"
+  },
   "scripts": {
     "build": "tsc",
     "dev": "tsx watch src/index.ts",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "mcp",
     "youtube",
-    "transcript"
+    "transcript",
+    "whisper",
+    "modelcontextprotocol"
+  ],
+  "files": [
+    "dist/**/*",
+    "README.md"
   ],
   "author": "",
   "license": "MIT",

@@ -11,7 +11,31 @@ A Model Context Protocol (MCP) server that fetches transcripts from YouTube vide
 
 ## Installation
 
+### Global Installation (Recommended)
+
+Install globally to use with Claude Desktop from anywhere:
+
 ```bash
+# From npm registry (when published)
+npm install -g youtube-transcript-mcp
+
+# Or from GitHub
+npm install -g git+https://github.com/IvyGain/youtube-transcript-mcp.git
+
+# Or from local development
+git clone https://github.com/IvyGain/youtube-transcript-mcp.git
+cd youtube-transcript-mcp
+npm install
+npm link
+```
+
+### Local Installation
+
+For development or local use:
+
+```bash
+git clone https://github.com/IvyGain/youtube-transcript-mcp.git
+cd youtube-transcript-mcp
 npm install
 npm run build
 ```
@@ -39,7 +63,26 @@ pip install yt-dlp
 
 ### With Claude Desktop
 
-Add this configuration to your Claude Desktop settings:
+#### Global Installation (Simplest)
+
+If you installed globally, add this to your Claude Desktop settings:
+
+```json
+{
+  "mcpServers": {
+    "youtube-transcript": {
+      "command": "youtube-transcript-mcp",
+      "env": {
+        "OPENAI_API_KEY": "your-openai-api-key"
+      }
+    }
+  }
+}
+```
+
+#### Local Installation
+
+If you installed locally, use the full path:
 
 ```json
 {
@@ -118,6 +161,27 @@ npm run build
 
 # Test functionality
 node test-whisper.cjs
+
+# Link for global testing
+npm link
+
+# Unlink when done
+npm unlink -g youtube-transcript-mcp
+```
+
+## CLI Commands
+
+When installed globally, you can use these commands:
+
+```bash
+# Start the MCP server
+youtube-transcript-mcp
+
+# Show help
+youtube-transcript-mcp --help
+
+# Show version
+youtube-transcript-mcp --version
 ```
 
 ## Environment Variables

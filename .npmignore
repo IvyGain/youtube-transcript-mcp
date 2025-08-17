@@ -1,0 +1,14 @@
+src/
+test-*.cjs
+test-*.js
+*.ts
+!dist/**/*.js
+tsconfig.json
+.git/
+.gitignore
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+*.log

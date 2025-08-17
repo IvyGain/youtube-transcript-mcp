@@ -70,6 +70,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 // ツールの実行ハンドラ
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   if (request.params.name === "get_transcript") {
+    // URLからvideoIdを抽出 (スコープをtry-catchの外に移動)
+    let extractedId = '';
+    let isLiveContent = false;
+    
     try {
       if (!request.params.arguments) {
         throw new Error("Missing arguments");
@@ -77,13 +81,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const args = request.params.arguments as { videoId: string; lang?: string };
       const { videoId, lang = 'en' } = args;
       
-      // URLからvideoIdを抽出
-      let extractedId = videoId;
+      extractedId = videoId;
+      
       if (videoId.includes('youtube.com') || videoId.includes('youtu.be')) {
         const patterns = [
+          // Standard YouTube URLs
           /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/)([^&\n?#]+)/,
+          // YouTube LIVE URLs
+          /(?:youtube\.com\/live\/)([^&\n?#]+)/,
+          // Direct video ID
           /^([a-zA-Z0-9_-]{11})$/
         ];
+        
+        // Check if it's a live URL
+        if (videoId.includes('/live/')) {
+          isLiveContent = true;
+        }
         
         for (const pattern of patterns) {
           const match = videoId.match(pattern);
@@ -94,7 +107,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
       }
       
-      console.error(`Fetching transcript for video: ${extractedId}, language: ${lang}`);
+      console.error(`Fetching transcript for video: ${extractedId}, language: ${lang}, isLive: ${isLiveContent}, originalURL: ${videoId}`);
       
       // 字幕を取得
       const transcript = await YoutubeTranscript.fetchTranscript(extractedId, {
@@ -129,12 +142,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     } catch (error) {
       console.error('Error fetching transcript:', error);
       
+      let errorMessage = error instanceof Error ? error.message : "Unknown error";
+      
+      // LIVE配信特有のエラーメッセージを追加
+      if (isLiveContent) {
+        errorMessage += "\n\nNote: This appears to be a LIVE stream URL. Live streams may have limited transcript availability:\n" +
+                      "- Live captions may not be available during streaming\n" +
+                      "- Try again after the stream has ended\n" +
+                      "- Consider using the Whisper transcription tool for live content";
+      }
+      
       // エラーの詳細を返す
       return {
         content: [
           {
             type: "text",
-            text: `Error fetching transcript: ${error instanceof Error ? error.message : "Unknown error"}`
+            text: `Error fetching transcript: ${errorMessage}`
           }
         ],
         isError: true
@@ -154,7 +177,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       let extractedId = videoId;
       if (videoId.includes('youtube.com') || videoId.includes('youtu.be')) {
         const patterns = [
+          // Standard YouTube URLs
           /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/)([^&\n?#]+)/,
+          // YouTube LIVE URLs
+          /(?:youtube\.com\/live\/)([^&\n?#]+)/,
+          // Direct video ID
           /^([a-zA-Z0-9_-]{11})$/
         ];
         

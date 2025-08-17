@@ -1,16 +1,14 @@
-#!/usr/bin/env node
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
-  Tool,
 } from "@modelcontextprotocol/sdk/types.js";
-import { YoutubeTranscript } from "youtube-transcript";
+import { YoutubeTranscript } from 'youtube-transcript';
 
 const server = new Server(
   {
-    name: "youtube-transcript-mcp",
+    name: "youtube-transcript",
     version: "1.0.0",
   },
   {
@@ -20,115 +18,108 @@ const server = new Server(
   }
 );
 
-const tools: Tool[] = [
-  {
-    name: "get_transcript",
-    description: "Get the transcript of a YouTube video",
-    inputSchema: {
-      type: "object",
-      properties: {
-        videoId: {
-          type: "string",
-          description: "YouTube video ID or URL",
-        },
-        lang: {
-          type: "string",
-          description: "Language code for the transcript (optional, defaults to 'en')",
-          default: "en",
-        },
-      },
-      required: ["videoId"],
-    },
-  },
-];
-
+// ツールリストの定義
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
-    tools,
+    tools: [
+      {
+        name: "get_transcript",
+        description: "Get the transcript of a YouTube video",
+        inputSchema: {
+          type: "object",
+          properties: {
+            videoId: {
+              type: "string",
+              description: "YouTube video ID or URL",
+            },
+            lang: {
+              type: "string",
+              description: "Language code for the transcript (optional, defaults to 'en')",
+              default: "en"
+            },
+          },
+          required: ["videoId"],
+        },
+      },
+    ],
   };
 });
 
+// ツールの実行ハンドラ
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-
-  if (name === "get_transcript") {
+  if (request.params.name === "get_transcript") {
     try {
-      if (!args) {
-        throw new Error("Missing arguments");
+      const { videoId, lang = 'en' } = request.params.arguments;
+      
+      // URLからvideoIdを抽出
+      let extractedId = videoId;
+      if (videoId.includes('youtube.com') || videoId.includes('youtu.be')) {
+        const patterns = [
+          /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/)([^&\n?#]+)/,
+          /^([a-zA-Z0-9_-]{11})$/
+        ];
+        
+        for (const pattern of patterns) {
+          const match = videoId.match(pattern);
+          if (match) {
+            extractedId = match[1];
+            break;
+          }
+        }
       }
-      const videoId = extractVideoId(args.videoId as string);
-      const lang = (args.lang as string) || "en";
-
-      const transcript = await YoutubeTranscript.fetchTranscript(videoId, {
-        lang,
+      
+      console.error(`Fetching transcript for video: ${extractedId}, language: ${lang}`);
+      
+      // 字幕を取得
+      const transcript = await YoutubeTranscript.fetchTranscript(extractedId, {
+        lang: lang
       });
-
-      const formattedTranscript = transcript
-        .map((item) => {
-          const timestamp = formatTimestamp(item.offset);
-          return `[${timestamp}] ${item.text}`;
-        })
-        .join("\n");
-
+      
+      // テキストを結合
+      const fullText = transcript
+        .map(item => item.text)
+        .join(' ');
+      
+      // 構造化された結果と全文の両方を返す
+      const result = {
+        videoId: extractedId,
+        language: lang,
+        transcriptCount: transcript.length,
+        fullText: fullText,
+        segments: transcript.slice(0, 10) // 最初の10セグメントをサンプルとして
+      };
+      
+      console.error('Successfully fetched transcript');
+      
       return {
         content: [
           {
             type: "text",
-            text: formattedTranscript,
-          },
-        ],
+            text: JSON.stringify(result, null, 2)
+          }
+        ]
       };
+      
     } catch (error) {
+      console.error('Error fetching transcript:', error);
+      
+      // エラーの詳細を返す
       return {
         content: [
           {
             type: "text",
-            text: `Error fetching transcript: ${error instanceof Error ? error.message : "Unknown error"}`,
-          },
+            text: `Error fetching transcript: ${error.message}`
+          }
         ],
-        isError: true,
+        isError: true
       };
     }
   }
-
-  throw new Error(`Unknown tool: ${name}`);
+  
+  throw new Error("Unknown tool");
 });
 
-function extractVideoId(input: string): string {
-  // Handle direct video ID
-  if (!input.includes("/") && !input.includes("=")) {
-    return input;
-  }
-
-  // Handle various YouTube URL formats
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/)([^&\n?#]+)/,
-  ];
-
-  for (const pattern of patterns) {
-    const match = input.match(pattern);
-    if (match && match[1]) {
-      return match[1];
-    }
-  }
-
-  // If no pattern matches, assume it's a video ID
-  return input;
-}
-
-function formatTimestamp(milliseconds: number): string {
-  const totalSeconds = Math.floor(milliseconds / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-}
-
-async function main() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-}
-
-main().catch((error) => {
-  console.error("Server error:", error);
-  process.exit(1);
-});
+// サーバーの起動
+const transport = new StdioServerTransport();
+server.connect(transport);
+console.error("YouTube Transcript MCP server running");

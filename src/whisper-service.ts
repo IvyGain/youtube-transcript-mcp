@@ -5,6 +5,8 @@ import path from 'path';
 import os from 'os';
 import youtubedl from 'youtube-dl-exec';
 import OpenAI from 'openai';
+// @ts-ignore
+import ffmpeg from 'ffmpeg-static';
 
 interface WhisperResult {
   text: string;
@@ -50,14 +52,21 @@ export class WhisperService {
 
       console.error(`Downloading audio for video: ${videoId}`);
       
-      await youtubedl.exec(`https://www.youtube.com/watch?v=${videoId}`, {
+      const options: any = {
         extractAudio: true,
         audioFormat: 'mp3',
         audioQuality: 9, // 最低品質で高速化
         output: audioPath,
         format: 'bestaudio/best',
         noCheckCertificates: true, // SSL証明書チェックを無効化
-      });
+      };
+      
+      // ffmpeg-staticのパスが利用可能な場合は設定
+      if (ffmpeg) {
+        options.ffmpegLocation = ffmpeg;
+      }
+      
+      await youtubedl.exec(`https://www.youtube.com/watch?v=${videoId}`, options);
 
       // ファイルが存在するか確認
       await fs.access(audioPath);
